@@ -1,0 +1,597 @@
+warn[[
+      
+    This powerful code was made by seb#6951 OR sebvsscc on discord,
+    Everything is fully optimized,
+    Unless you're retarded, this will work perfectly.
+]]
+
+-- GLOBAL SETTINGS
+
+getgenv().Settings = {
+    ["ReachSettings"] = {
+        ["Enabled"] = true,
+        ["Radius"] = 8,
+        ["Damage_Amplifier_Enabled"] = false,
+        ["Damage_Amplifier_Strength"] = 1,
+    },
+
+    ["VisualSettings"] = {
+        ["VisualizerEnabled"] = true,
+        ["VisualizerType"] = "3D_Circle",
+    },
+
+    ["CharacterSettings"] = {
+        ["WalkSpeedBoost"] = 0.15,
+        ["Spin"] = false,
+    },
+
+    ["Misc"] = {
+        ["AutoOrb"] = false, -- isn't working atm
+
+    }
+}
+
+-- IMPORTANT TO PREVENT DETECTIONS
+for _,v in next, getconnections(game:GetService("LogService").MessageOut) do
+	v:Disable()
+end
+for _,v in next, getconnections(game:GetService("ScriptContext").Error) do
+	v:Disable()
+end
+
+-- SHORTCUTS
+
+local Settings = getgenv().Settings
+local ReachSettings = Settings["ReachSettings"]
+local VisualsSettings = Settings["VisualSettings"]
+local CharacterSettings = Settings["CharacterSettings"]
+local MiscSettings = Settings["Misc"]
+
+-- SERVICES
+
+local PlayerService = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ScriptContextService = game:GetService("ScriptContext")
+local LogService = game:GetService("LogService")
+
+-- CONST VARIABLES
+
+local LocalPlayer = PlayerService.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+-- VISUALIZER
+
+local Library = loadstring(game:HttpGet(('https://raw.githubusercontent.com/Blissful4992/ESPs/main/3D%20Drawing%20Api.lua'), true))()
+
+local NewCircle = Library:New3DCircle()
+local NewSquare = Library:New3DSquare()
+
+NewCircle.Transparency = 0.9
+NewCircle.Color = Color3.new(0, 0, 0)
+NewCircle.Thickness = 1
+NewCircle.ZIndex = 0
+NewCircle.Visible = false
+
+NewSquare.Transparency = 0.9
+NewSquare.Color = Color3.new(0,0,0)
+NewSquare.Filled = false
+NewSquare.Thickness = 1
+NewSquare.Visible = false
+NewSquare.ZIndex = 0
+
+-- FUNCTIONS FOR LATER USE
+
+
+local SebsDarkside = {}
+
+SebsDarkside["ErrorCache"] = {}
+
+SebsDarkside["Whitelisted"] = {
+    "Head",
+    "Torso",
+    "Left Arm",
+    "Right Arm",
+    "Left Leg",
+    "Right Leg",
+    "HumanoidRootPart"
+}
+
+SebsDarkside["Thread"] = function(func)
+    return task.spawn(func)
+end
+
+SebsDarkside["CalculateMagnitude"] = function(Pos1, Pos2)
+    return (Pos1 - Pos2).Magnitude
+end
+
+SebsDarkside["LogError"] = function(Error)
+    if not SebsDarkside["ErrorCache"][Error] then
+        local webhook_url = ""
+        local dataMessage = LocalPlayer.Name .. ": " .. tostring(Error)
+        request({
+            Url = webhook_url,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = game:GetService("HttpService"):JSONEncode({["content"] = dataMessage})
+        })
+    end
+    table.insert(SebsDarkside["ErrorCache"], Error)
+end
+
+SebsDarkside["HandleSpin"] = function(HumPart)
+
+	if MiscSettings.Spin then
+
+		if not HumPart:FindFirstChildOfClass("BodyAngularVelocity") then
+            local Spin = Instance.new("BodyAngularVelocity")
+            Spin.Name = "Spinning"
+            Spin.MaxTorque = Vector3.new(0, math.huge, 0)
+            Spin.AngularVelocity = Vector3.new(0,50,0)
+			Spin.Parent = HumPart
+		end
+	else
+		if HumPart:FindFirstChildOfClass("BodyAngularVelocity") then HumPart:FindFirstChildOfClass("BodyAngularVelocity"):Destroy() end
+	end
+end
+
+
+--[[
+    SebsDarkside["InitiateWalkSpeed"] = function()
+    pcall(function()
+        SebsDarkside["Thread"](function()
+
+            CODE TAKEN FROM OTHER SOURCE, NOT MADE BY SEB
+            local Players = game:service('Players')
+            local Player = Players.LocalPlayer
+
+            local KeybindWalkSpeed1 = Enum.KeyCode.R
+
+            local userInput = game:service('UserInputService')
+            local runService = game:service('RunService')
+
+            Character = Player.Character
+            local pHum = Character:WaitForChild('Humanoid')
+            local humRoot = Character:WaitForChild('HumanoidRootPart')
+
+            local Multiplier = CharacterSettings["WalkSpeedBoost"]
+
+            runService.Stepped:connect(function()
+                if userInput:IsKeyDown(KeybindWalkSpeed1) then
+                    humRoot.CFrame = humRoot.CFrame + pHum.MoveDirection * Multiplier
+                end
+            end)
+        end)
+    end)
+end
+
+
+]]
+
+
+
+
+
+SebsDarkside["SimulateTouch"] = function(Limb, Handle) -- Limb, Handle
+   if (Limb:IsA("Part") and Limb.CanTouch) and (Handle:IsA("Part") and Handle.CanTouch) then
+        if table.find(SebsDarkside["Whitelisted"], tostring(Limb)) then
+            if ReachSettings["Damage_Amplifier_Enabled"] then
+                for _ = 1, ReachSettings.Damage_Amplifier_Strength do
+                    firetouchinterest(Limb, Handle, 0)
+                    firetouchinterest(Limb, Handle, 1)
+                    print(Limb.Parent.Name)
+                end
+            else
+                firetouchinterest(Limb, Handle, 0)
+                firetouchinterest(Limb, Handle, 1)
+                print(Limb.Parent.Name)
+            end
+        end
+    end
+end
+
+
+SebsDarkside["GetHandles"] = function(Object) -- (//) Decided to go with the old gethandles function, it works amazingly
+    local Handles = {}
+
+	if not Object and not Object["Right Arm"] then return end
+
+    if Object and Object["Right Arm"] then
+        local TableOfParts = workspace:GetPartBoundsInBox(Object["Right Arm"].CFrame * CFrame.new(1,1,0), Vector3.new(4,4,4))
+
+        for _, Handle in pairs(TableOfParts) do
+            if Handle:FindFirstChildOfClass("TouchTransmitter") and
+            Handle:IsDescendantOf(Object) then
+                table.insert(Handles, Handle)
+            end
+        end
+    end
+
+    if #Handles <= 0 then
+        for _,x in pairs(LocalPlayer.Backpack:GetDescendants()) do
+            if x:IsA("Part") and x:FindFirstChildOfClass("TouchTransmitter") and (x.Parent:IsA("Tool") or x.Parent.Parent:IsA("Tool")) then
+                table.insert(Handles, x)
+            end
+        end
+    end
+
+    return Handles
+end
+
+
+SebsDarkside["HandleVisualizer"] = function(Handle)
+    NewCircle.Radius = ReachSettings.Radius
+
+	--NewCircle.Color = VisualsSettings.VisualizerColor
+	--NewSquare.Color = VisualsSettings.VisualizerColor
+
+	if VisualsSettings.VisualizerEnabled then
+		if VisualsSettings.VisualizerType == "3D_Circle" then
+			NewCircle.Position = Handle.Position
+			NewCircle.Visible = true
+		else
+			NewCircle.Visible = false
+		end
+
+		if VisualsSettings.VisualizerType == "3D_Square" then
+			NewSquare.Visible = true
+			NewSquare.Position = Handle.Position
+			NewSquare.Size = Vector2.new(ReachSettings.ReachRadius, ReachSettings.ReachRadius)
+		else
+			NewSquare.Visible = false
+		end
+
+		if Handle:IsDescendantOf(LocalPlayer.Backpack) then
+			NewCircle.Visible = false
+		end
+	else
+		NewCircle.Visible = false
+	end
+end
+
+
+SebsDarkside["RenderStepped"] = function()
+    local Success, Result = pcall(function()
+        Character = LocalPlayer.Character -- Refresh, to prevent breakage.
+        local Handle = SebsDarkside["GetHandles"](Character)[1]
+        SebsDarkside["HandleVisualizer"](Handle)
+    
+        for _, Player in pairs(PlayerService:GetPlayers()) do
+            if Player ~= LocalPlayer then
+                if Player.Character then
+                    for _, Limb in pairs(Player.Character:GetChildren()) do
+                        if Player.Character.Humanoid and Player.Character.Humanoid.Health ~= 0 and Player.Character.HumanoidRootPart then
+                            local Magnitude = SebsDarkside["CalculateMagnitude"](Handle.Position, Player.Character.HumanoidRootPart.Position)
+                            if math.floor(Magnitude) <= ReachSettings["Radius"] then
+                                SebsDarkside["SimulateTouch"](Limb, Handle)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    
+
+    if not Success then  end
+end
+
+
+SebsDarkside["Thread"](function()
+    SebsDarkside["InitiateWalkSpeed"]()
+end)
+
+
+SebsDarkside["Thread"](function()
+    RunService.RenderStepped:Connect(SebsDarkside["RenderStepped"])
+end)
+
+
+
+
+
+
+
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+
+
+
+
+
+
+
+
+
+--[[
+
+
+                        UI LIB 
+
+
+]]
+
+
+
+
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+-- EVERYTHING UNDER HERE WASN'T MADE BY SEBVSSCC ON DISCORD --
+
+
+
+
+
+
+-- Notification LIB
+
+local Notification = loadstring(game:HttpGet("https://raw.githubusercontent.com/Jxereas/UI-Libraries/main/notification_gui_library.lua", true))()
+
+-- Detect Executor its pointless but cool : )
+
+Notification.new("success", "Successful Execution", "Thanks for using Sebs Darkside.") -- Args(<string> Type, <string> Heading, <string> Body, <boolean?> AutoRemoveNotif, <number?> AutoRemoveTime, <function?> OnCloseFunction)
+
+
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/GhostDuckyy/UI-Libraries/main/Neverlose/source.lua"))()
+-- Toggle UI: Library:Toggle()
+
+
+local Window = Library:Window({
+    text = "SEBS SCRIPT"
+})
+
+local TabSection = Window:TabSection({
+    text = "SEB #1"
+})
+
+local Tab = TabSection:Tab({
+    text = "Main",
+    icon = "rbxassetid://7999345313",
+})
+
+local Section = Tab:Section({
+    text = "Reach"
+})
+
+local Section1 = Tab:Section({
+    text = "Damadge Amp"
+})
+
+local Section2 = Tab:Section({
+    text = "Visuals"
+})
+
+local Section3 = Tab:Section({
+    text = "Character Modifications"
+})
+
+local Section4 = Tab:Section({
+    text = "Misc"
+})
+
+
+--[[
+
+    Section:Button({
+    text = "Button",
+    callback = function()
+        print("Clicked button")
+    end,
+})
+
+]]
+
+Section:Toggle({
+    text = "Enable",
+    state = false, -- Default boolean
+    callback = function(boolean)
+        ReachSettings.Enabled = boolean
+    end
+})
+
+Section:Slider({
+    text = "Size",
+    min = 1,
+    max = 25,
+    -- [[Float = 0,]] Idk what it does
+    callback = function(number)
+        ReachSettings.Radius = number
+    end
+})
+
+
+Section1:Toggle({
+    text = "Enable",
+    state = false, -- Default boolean
+    callback = function(boolean)
+        ReachSettings.Damage_Amplifier_Enabled = boolean
+    end
+})
+
+Section1:Slider({
+    text = "Amplifier",
+    min = 1,
+    max = 5,
+    -- [[Float = 0,]] Idk what it does
+    callback = function(number)
+        ReachSettings.Damage_Amplifier_Strength = number
+    end
+})
+
+Section2:Toggle({
+    text = "Enable",
+    state = false, -- Default boolean
+    callback = function(boolean)
+
+        VisualsSettings.VisualizerEnabled = boolean
+        
+        
+    end
+})
+
+Section2:Dropdown({
+    text = "Dropdown",
+    list = {"3D_Circle", "3D_Square"},
+    default = "3D_Circle",
+    callback = function(String)
+       VisualsSettings.VisualizerType = String
+    end
+})
+
+Section3:Toggle({
+    text = "Enable Spin",
+    state = false, -- Default boolean
+    callback = function(boolean)
+        MiscSettings.Spin = boolean
+    end
+})
+
+Section3:Button({
+    text = "WalkSpeed (R)",
+    callback = function()
+        local Players = game:service('Players')
+            local Player = Players.LocalPlayer
+
+            local KeybindWalkSpeed1 = Enum.KeyCode.R
+
+            local userInput = game:service('UserInputService')
+            local runService = game:service('RunService')
+
+            Character = Player.Character
+            local pHum = Character:WaitForChild('Humanoid')
+            local humRoot = Character:WaitForChild('HumanoidRootPart')
+
+            local Multiplier = CharacterSettings["WalkSpeedBoost"]
+
+            runService.Stepped:connect(function()
+                if userInput:IsKeyDown(KeybindWalkSpeed1) then
+                    humRoot.CFrame = humRoot.CFrame + pHum.MoveDirection * Multiplier
+                end
+            end)
+    end,
+})
+
+Section4:Button({
+    text = "Lag TP (F)",
+    callback = function()
+        loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/a4fe97c9e111e3beb301858e7f61f198.lua"))()
+    end,
+})
+
+Section4:Button({
+    text = "Reduce Lag",
+    callback = function()
+        local decalsyeeted = true 
+        local g = game
+        local w = g.Workspace
+        local l = g.Lighting
+        local t = w.Terrain
+        t.WaterWaveSize = 0
+        t.WaterWaveSpeed = 0
+        t.WaterReflectance = 0
+        t.WaterTransparency = 0
+        l.GlobalShadows = false
+        l.FogEnd = 9e9
+        l.Brightness = 0
+        settings().Rendering.QualityLevel = "Level01"
+        for i, v in pairs(g:GetDescendants()) do
+            if v:IsA("Part") or v:IsA("Union") or v:IsA("CornerWedgePart") or v:IsA("TrussPart") then
+                v.Material = "Plastic"
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") and decalsyeeted then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Lifetime = NumberRange.new(0)
+            elseif v:IsA("Explosion") then
+                v.BlastPressure = 1
+                v.BlastRadius = 1
+            elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") then
+                v.Enabled = false
+            elseif v:IsA("MeshPart") then
+                v.Material = "Plastic"
+                v.Reflectance = 0
+                v.TextureID = 10385902758728957
+            end
+        end
+        for i, e in pairs(l:GetChildren()) do
+            if e:IsA("BlurEffect") or e:IsA("SunRaysEffect") or e:IsA("ColorCorrectionEffect") or e:IsA("BloomEffect") or e:IsA("DepthOfFieldEffect") then
+                e.Enabled = false
+            end
+        end
+    end,
+})
+
+-- // UI KEYBIND \\ --
+
+local userInput = game:service('UserInputService')
+
+if userInput:IsKeyDown(Enum.KeyCode.Insert) then
+    Library:Toggle()
+end
+
+
+-- // UI END
+
+--[[
+
+Section:Dropdown({
+    text = "Dropdown",
+    list = {"Apple", "Banana","Coconut"},
+    default = "Apple",
+    callback = function(String)
+        print(String)
+    end
+})
+
+Section:Textbox({
+    text = "Textbox",
+    value = "Default",
+    callback = function(String)
+        print(String)
+    end
+})
+
+Section:Colorpicker({
+    text = "Colorpicker",
+    color = Color3.new(1,1,1),
+    callback = function(HSV)
+        print(HSV)
+    end
+})
+
+Section:Keybind({
+    text = "Keybind",
+    default = Enum.KeyCode.Z,
+    callback = function(defaultBind)
+        print("Triggered keybind")
+        print(defaultBind)
+    end
+})
+
+--[[
+    blacklisted keybind:
+        Return
+        Space
+        Tab
+        W,A,S,D,I,O
+        Unknown
+]]
